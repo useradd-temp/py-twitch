@@ -1,15 +1,31 @@
-from .channels import *
-from .game import *
-from .search import *
-from .stream import *
-from .users import *
+from dataclasses import dataclass
+from typing import Optional, List
 
 
-__all__ = [
-    "ChannelsCommercialModel",
-    "GamesModel",
-    "StreamsModel",
-    "SearchChannelsModel",
-    "UsersFollowsModel",
-    "UsersModel",
-]
+@dataclass
+class Pagination:
+    cursor: Optional[str]
+
+
+@dataclass
+class BitsCheermotesModel:
+    @dataclass
+    class data:
+        @dataclass
+        class tier:
+            min_bits: int
+            id: str
+            color: str
+            images: dict
+            can_cheer: bool
+            show_in_bits_card: bool
+        
+        prefix: str
+        tiers: List[dict]
+        tiers: List[tier]
+        type: str
+        order: int
+        last_updated: str
+        is_charitable: bool
+    
+    data: List[data]

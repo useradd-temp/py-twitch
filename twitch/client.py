@@ -3,6 +3,7 @@ from typing import Dict
 from urllib.parse import urljoin
 from typing import TypeVar, Callable
 from dacite import from_dict
+
 from .models import *
 from .params import BaseParam
 from .exception import APIError, ValidationError, NotProvideError
@@ -10,21 +11,20 @@ from .exception import APIError, ValidationError, NotProvideError
 T = TypeVar("T")
 
 
-def api_call(model: T, oauth=False, **config) -> Callable[..., T]:
+def api_call(model: T = None, oauth=False, **config) -> Callable[..., T]:
     class APIMethod(object):
 
         path = config["path"]
         method = config.get("method", "get")
         params = dict()
 
-        def __new__(cls, *args, **kwargs):
+        def __init__(self, client, **kwargs):
+
             if oauth:
                 raise NotProvideError(
-                    message=f"py-twitch does not support '{cls.path}' yet"
+                    message=f"py-twitch does not support '{self.path}' yet"
                 )
-            return super(APIMethod, cls).__new__(cls, **kwargs)
 
-        def __init__(self, client, **kwargs):
             self.model = model if model else config.get("model")
             self.client = client
             self.header = {
@@ -102,11 +102,13 @@ class TwitchAPIClient:
             raise Exception("Wrong Client Key")
         return auth_response.get("access_token")
 
+    # Method Block
+
     channels_commercial = api_call(
         path="channels/commercial",
         method="POST",
         oauth=True,
-        model=ChannelsCommercialModel,
+        model=None,
         broadcaster_id=BaseParam(name="broadcaster_id", required=True, types=str),
         length=BaseParam(name="length", required=True, types=int),
     )
@@ -129,10 +131,288 @@ class TwitchAPIClient:
         method="GET",
         oauth=True,
     )
-    
-    
-    
-    
+
+    bits_leaderboard = api_call(
+        path="bits/leaderboard",
+        method="GET",
+        oauth=True,
+    )
+
+    bits_cheermotes = api_call(
+        path="bits/cheermotes",
+        method="GET",
+        model=BitsCheermotesModel,
+        broadcaster_id=BaseParam(name="broadcaster_id", types=str),
+    )
+
+    extensions_transactions = api_call(
+        path="extensions/transactions",
+        method="GET",
+        model=None,
+        extension_id=BaseParam(name="extension_id", types=str, required=True),
+        id=BaseParam(name="extension_id", types=str),
+        after=BaseParam(name="extension_id", types=str),
+        first=BaseParam(name="extension_id", types=int, maximum=100),
+    )
+
+    helix_channels = api_call(
+        path="helix/channels",
+        method="GET",
+        model=None,
+        broadcaster_id=BaseParam(name="broadcaster_id", types=str),
+    )
+
+    channels = api_call(path="channels", method="GET", model=None, oauth=True)
+
+    channels_editors = api_call(
+        path="channels/editors", method="GET", model=None, oauth=True
+    )
+
+    channel_points_custom_rewards_GET = api_call(
+        path="channel_points/custom_rewards", method="GET", model=None, oauth=True
+    )
+
+    channel_points_custom_rewards_POST = api_call(
+        path="channel_points/custom_rewards", method="POST", model=None, oauth=True
+    )
+
+    channel_points_custom_rewards_DELETE = api_call(
+        path="channel_points/custom_rewards", method="DELETE", model=None, oauth=True
+    )
+
+    channel_points_custom_rewards_PATH = api_call(
+        path="channel_points/custom_rewards", method="PATH", model=None, oauth=True
+    )
+
+    channel_points_custom_rewards_redemptions_GET = api_call(
+        path="channel_points/custom_rewards/redemptions",
+        method="GET",
+        model=None,
+        oauth=True,
+    )
+
+    channel_points_custom_rewards_redemptions_PATH = api_call(
+        path="channel_points/custom_rewards/redemptions",
+        method="PATH",
+        model=None,
+        oauth=True,
+    )
+
+    # TODO!!!
+    clips_GET = api_call(
+        path="clips",
+        method="GET",
+        model=None,
+    )
+
+    clips_POST = api_call(path="clips", method="POST", model=None, oauth=True)
+
+    # TODO!!!
+    entitlements_codes_GET = api_call(
+        path="entitlements/codes",
+        method="GET",
+        model=None,
+        code=BaseParam(name="code", types=str),
+        user_id=BaseParam(name="user_id", types=int),
+    )
+
+    entitlements_drops = api_call(
+        path="entitlements/drops", method="GET", model=None, oauth=True
+    )
+
+    # TODO!!!
+    entitlements_codes_POST = api_call(
+        path="entitlements/codes",
+        method="POST",
+        model=None,
+        code=BaseParam(name="code", types=str),
+        user_id=BaseParam(name="user_id", types=int),
+    )
+
+    # TODO!!!
+    eventsub_subscriptions_POST = api_call(
+        path="eventsub/subscriptions",
+        method="POST",
+        model=None,
+        type=BaseParam(name="type", types=str),
+        version=BaseParam(name="version", types=str),
+        condition=BaseParam(name="condition", types=dict),
+        transport=BaseParam(name="transport", types=dict),
+    )
+
+    # TODO!!!
+    eventsub_subscriptions_DELETE = api_call(
+        path="eventsub/subscriptions",
+        method="DELETE",
+        model=None,
+        id=BaseParam(name="id", types=str),
+    )
+
+    # TODO!!!
+    eventsub_subscriptions_GET = api_call(
+        path="eventsub/subscriptions",
+        method="GET",
+        model=None,
+        status=BaseParam(name="status", types=str),
+        type=BaseParam(name="type", types=str),
+    )
+
+    # TODO!!!
+    games_top = api_call(
+        path="games/top",
+        method="GET",
+        model=None,
+    )
+
+    # TODO!!!
+    games = api_call(path="games", method="GET", model=None)
+
+    # TODO!!!
+    hypetrain_events = api_call(path="hypetrain/events", method="GET", model=None)
+
+    moderation_enforcements_status = api_call(
+        path="moderation/enforcements/status", method="POST", model=None, oauth=True
+    )
+
+    moderation_banned_events = api_call(
+        path="moderation/banned/events", method="GET", model=None, oauth=True
+    )
+
+    moderation_banned = api_call(
+        path="moderation/banned", method="GET", model=None, oauth=True
+    )
+
+    # TODO!!!
+    moderation_moderators = api_call(
+        path="moderation/moderators",
+        method="GET",
+        model=None,
+    )
+
+    moderation_moderators_events = api_call(
+        path="moderation/moderators/events", method="GET", model=None, oauth=True
+    )
+
+    # TODO!!!
+    search_categories = api_call(
+        path="search/categories",
+        method="GET",
+        model=None,
+    )
+
+    # TODO!!!
+    search_channels = api_call(path="search/channels", method="GET", model=None)
+
+    streams_key = api_call(path="streams/key", method="GET", model=None, oauth=True)
+
+    # TODO!!!
+    streams = api_call(
+        path="streams",
+        method="GET",
+        model=None,
+    )
+
+    streams_followed = api_call(
+        path="streams/followed", method="GET", model=None, oauth=True
+    )
+
+    streams_markers_POST = api_call(
+        path="streams/markers", method="POST", model=None, oauth=True
+    )
+
+    streams_markers_GET = api_call(
+        path="streams/markers", method="GET", model=None, oauth=True
+    )
+
+    subscriptions = api_call(path="subscriptions", method="GET", model=None, oauth=True)
+
+    subscriptions_user = api_call(
+        path="subscriptions/user", method="GET", model=None, oauth=True
+    )
+
+    # TODO!!!
+    tags_streams = api_call(
+        path="tags/streams",
+        method="GET",
+        model=None,
+    )
+
+    # TODO!!!
+    streams_tags_GET = api_call(path="streams/tags", method="GET", model=None)
+
+    # TODO!!!
+    streams_tags_PUT = api_call(
+        path="streams/tags", method="GET", model=None, oauth=True
+    )
+
+    # TODO!!!
+    teams_channel = api_call(
+        path="teams/channel",
+        method="GET",
+        model=None,
+    )
+
+    # TODO!!!
+    teams = api_call(
+        path="teams",
+        method="GET",
+        model=None,
+    )
+
+    # TODO!!!
+    users_GET = api_call(
+        path="users",
+        method="GET",
+        model=None,
+        id=BaseParam(name="id", types=str),
+        login=BaseParam(name="login", types=str),
+    )
+
+    users_PUT = api_call(path="users", method="PUT", model=None, oauth=True)
+
+    # TODO!!!
+    users_follows_GET = api_call(path="users/follows", method="GET", model=None)
+
+    users_follows_POST = api_call(
+        path="users/follows", method="POST", model=None, oauth=True
+    )
+
+    users_follows_DELETE = api_call(
+        path="users/follows", method="DELETE", model=None, oauth=True
+    )
+
+    users_blocks_GET = api_call(
+        path="users/blocks", method="GET", model=None, oauth=True
+    )
+
+    users_blocks_PUT = api_call(
+        path="users/blocks", method="PUT", model=None, oauth=True
+    )
+
+    users_blocks_DELETE = api_call(
+        path="users/blocks", method="DELETE", model=None, oauth=True
+    )
+
+    users_extensions_list = api_call(
+        path="users/extensions/list", method="GET", model=None, oauth=True
+    )
+
+    users_extensions_GET = api_call(
+        path="users/extensions", method="GET", model=None, oauth=True
+    )
+
+    users_extensions_PUT = api_call(
+        path="users/extensions", method="PUT", model=None, oauth=True
+    )
+
+    videos_GET = api_call(path="videos", method="GET", model=None)
+
+    videos_DELETE = api_call(path="videos", method="DELETE", model=None)
+
+    webhooks_subscriptions = api_call(
+        path="webhooks/subscriptions", method="GET", model=None
+    )
+
     # streams = api_call(
     #     path="streams",
     #     model=StreamsModel,
