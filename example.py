@@ -20,8 +20,6 @@ if __name__ == "__main__":
         if not pagination:
             break
 
-
-
     # Multi Query Parameters Example
     data = client.get_users(id=["141981764", "171003792"])
     for user in data.data:

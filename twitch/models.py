@@ -278,6 +278,7 @@ class UsersFollowsModel:
         to_id: Optional[str]
         to_login: Optional[str]
         to_name: Optional[str]
+
     total: Optional[int]
     data: List[Data]
     pagination: Pagination
