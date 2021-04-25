@@ -45,3 +45,10 @@ data = client.get_users(login='twitch')
 print(data)
 ```
 
+
+## TODO
+
++ Implements OAuth Methods
+
++ Change fields(such as started_at) type to DateTimeField 
+
