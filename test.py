@@ -10,4 +10,4 @@ if __name__ == '__main__':
 	client_secret = "YOUR CLIENT SECRET"
 
 	client = TwitchAPIClient(client_id, client_secret)
-	print(client.users_GET(login='twitch'))
+	print(client.get_users(login='twitch'))
