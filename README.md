@@ -16,7 +16,7 @@ This library supports typing using dataclass, so you can use IDE's auto complete
 
 
 ```shell
-pip install git+https://github.com/helloracoon/py-twitch
+pip install py-twitch
 ```
 
 ## Requirements
