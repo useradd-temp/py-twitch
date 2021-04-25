@@ -1,8 +1,11 @@
+import json
 import requests
-from typing import Dict
+
+from collections import defaultdict
+from typing import Dict, TypeVar, Callable, Union
 from urllib.parse import urljoin
-from typing import TypeVar, Callable
 from dacite import from_dict
+from ast import literal_eval
 
 from .models import *
 from .params import BaseParam
@@ -41,15 +44,25 @@ def api_call(model: T = None, oauth=False, **config) -> Callable[..., T]:
                 self.params[key] = kwargs[key]
             self.url = urljoin(client._uri, self.path)
 
-        def validate(self, **params):
-            query_params = set(params.keys()) - set(self.params_restrict.keys())
+        def set_validate(self):
+            required_sets = defaultdict(list)
+
+            for key, restrict in self.params_restrict.items():
+                required_sets[restrict.required_set].append(key in self.params.keys())
+
+            for key, item in required_sets.items():
+                if not any(item):
+                    raise ValidationError(message=f"Some fields is required ({key})")
+
+        def validate(self):
+            query_params = set(self.params.keys()) - set(self.params_restrict.keys())
             if len(query_params) != 0:
                 raise ValidationError(
                     message=f"{list(query_params)} is not API query parameter.",
                 )
 
             for key, item in self.params_restrict.items():
-                item.validate(params.get(item.name))
+                item.validate(self.params.get(item.name))
 
         def _request(self, url, params, header):
             request = getattr(self.client._session, self.method.lower())
@@ -60,9 +73,13 @@ def api_call(model: T = None, oauth=False, **config) -> Callable[..., T]:
             return response
 
         def execute(self):
-            self.validate(**self.params)
+            self.set_validate()
+            self.validate()
             response = self._request(self.url, self.params, self.header)
-            if self.model:
+            if self.model == dict:
+
+                return literal_eval(response.text)
+            elif self.model:
                 try:
                     return from_dict(self.model, response.json())
                 except Exception:
@@ -104,6 +121,7 @@ class TwitchAPIClient:
 
     # Method Block
 
+    # https://dev.twitch.tv/docs/api/reference#start-commercial
     post_channels_commercial = api_call(
         path="channels/commercial",
         method="POST",
@@ -113,6 +131,7 @@ class TwitchAPIClient:
         length=BaseParam(name="length", required=True, types=int),
     )
 
+    # https://dev.twitch.tv/docs/api/reference#get-extension-analytics
     get_analytics_extensions = api_call(
         path="analytics/extensions",
         method="GET",
@@ -125,19 +144,21 @@ class TwitchAPIClient:
         type=BaseParam(name="type", types=str),
     )
 
-    # TODO
+    # https://dev.twitch.tv/docs/api/reference#get-game-analytics
     get_analytics_games = api_call(
         path="analytics/games",
         method="GET",
         oauth=True,
     )
 
+    # https://dev.twitch.tv/docs/api/reference#get-bits-leaderboard
     get_bits_leaderboard = api_call(
         path="bits/leaderboard",
         method="GET",
         oauth=True,
     )
 
+    # https://dev.twitch.tv/docs/api/reference#get-cheermotes
     get_bits_cheermotes = api_call(
         path="bits/cheermotes",
         method="GET",
@@ -145,45 +166,54 @@ class TwitchAPIClient:
         broadcaster_id=BaseParam(name="broadcaster_id", types=str),
     )
 
+    # https://dev.twitch.tv/docs/api/reference#get-extension-transactions
     get_extensions_transactions = api_call(
         path="extensions/transactions",
         method="GET",
-        model=None,
+        model=ExtensionTransactionsModel,
         extension_id=BaseParam(name="extension_id", types=str, required=True),
-        id=BaseParam(name="extension_id", types=str),
+        id=BaseParam(name="extension_id", types=Union[List, str]),
         after=BaseParam(name="extension_id", types=str),
         first=BaseParam(name="extension_id", types=int, maximum=100),
     )
 
+    # https://dev.twitch.tv/docs/api/reference#get-channel-information
     get_helix_channels = api_call(
         path="helix/channels",
         method="GET",
-        model=None,
+        model=ChannelModel,
         broadcaster_id=BaseParam(name="broadcaster_id", types=str),
     )
 
+    # https://dev.twitch.tv/docs/api/reference#modify-channel-information
     get_channels = api_call(path="channels", method="GET", model=None, oauth=True)
 
+    # https://dev.twitch.tv/docs/api/reference#get-channel-editors
     get_channels_editors = api_call(
         path="channels/editors", method="GET", model=None, oauth=True
     )
 
+    # https://dev.twitch.tv/docs/api/reference#create-custom-rewards
     get_channel_points_custom_rewards = api_call(
         path="channel_points/custom_rewards", method="GET", model=None, oauth=True
     )
 
+    # https://dev.twitch.tv/docs/api/reference#delete-custom-reward
     post_channel_points_custom_rewards = api_call(
         path="channel_points/custom_rewards", method="POST", model=None, oauth=True
     )
 
+    # https://dev.twitch.tv/docs/api/reference#get-custom-reward
     delete_channel_points_custom_rewards = api_call(
         path="channel_points/custom_rewards", method="DELETE", model=None, oauth=True
     )
 
-    path_channel_points_custom_rewards = api_call(
-        path="channel_points/custom_rewards", method="PATH", model=None, oauth=True
+    # https://dev.twitch.tv/docs/api/reference#update-custom-reward
+    patch_channel_points_custom_rewards = api_call(
+        path="channel_points/custom_rewards", method="PATCH", model=None, oauth=True
     )
 
+    # https://dev.twitch.tv/docs/api/reference#get-custom-reward-redemption
     get_channel_points_custom_rewards_redemptions = api_call(
         path="channel_points/custom_rewards/redemptions",
         method="GET",
@@ -191,36 +221,51 @@ class TwitchAPIClient:
         oauth=True,
     )
 
-    path_channel_points_custom_rewards_redemptions = api_call(
+    # https://dev.twitch.tv/docs/api/reference#update-redemption-status
+    patch_channel_points_custom_rewards_redemptions = api_call(
         path="channel_points/custom_rewards/redemptions",
-        method="PATH",
+        method="PATCH",
         model=None,
         oauth=True,
     )
 
-    # TODO!!!
+    # https://dev.twitch.tv/docs/api/reference#get-clips
     get_clips = api_call(
         path="clips",
         method="GET",
-        model=None,
+        model=ClipModel,
+        broadcaster_id=BaseParam(
+            name="broadcaster_id", types=str, required=True, required_set="info"
+        ),
+        game_id=BaseParam(
+            name="game_id", types=str, required=True, required_set="info"
+        ),
+        id=BaseParam(name="id", types=str, required=True, required_set="info"),
+        after=BaseParam(name="after", types=str),
+        before=BaseParam(name="before", types=str),
+        ended_at=BaseParam(name="ended_at", types=str),
+        first=BaseParam(name="first", types=int, maximum=100),
+        started_at=BaseParam(name="started_at", types=str),  # RFC3339 format
     )
 
+    # https://dev.twitch.tv/docs/api/reference#create-clip
     post_clips = api_call(path="clips", method="POST", model=None, oauth=True)
 
-    # TODO!!!
+    # https://dev.twitch.tv/docs/api/reference#get-clips
     get_entitlements_codes = api_call(
         path="entitlements/codes",
         method="GET",
-        model=None,
-        code=BaseParam(name="code", types=str),
+        model=CodesModel,
+        code=BaseParam(name="code", types=Union[list, str]),
         user_id=BaseParam(name="user_id", types=int),
     )
 
+    # https://dev.twitch.tv/docs/api/reference#get-clips
     get_entitlements_drops = api_call(
         path="entitlements/drops", method="GET", model=None, oauth=True
     )
 
-    # TODO!!!
+    # TODO!!! ???
     post_entitlements_codes = api_call(
         path="entitlements/codes",
         method="POST",
@@ -229,186 +274,269 @@ class TwitchAPIClient:
         user_id=BaseParam(name="user_id", types=int),
     )
 
-    # TODO!!!
+    # https://dev.twitch.tv/docs/api/reference#create-eventsub-subscription
     post_eventsub_subscriptions = api_call(
         path="eventsub/subscriptions",
         method="POST",
-        model=None,
-        type=BaseParam(name="type", types=str),
-        version=BaseParam(name="version", types=str),
-        condition=BaseParam(name="condition", types=dict),
-        transport=BaseParam(name="transport", types=dict),
+        model=EventsubSubscriptionsModel,
+        type=BaseParam(name="type", types=str, required=True),
+        version=BaseParam(name="version", types=str, required=True),
+        condition=BaseParam(name="condition", types=dict, required=True),
+        transport=BaseParam(name="transport", types=dict, required=True),
     )
 
-    # TODO!!!
+    # https://dev.twitch.tv/docs/api/reference#delete-eventsub-subscription
     delete_eventsub_subscriptions = api_call(
         path="eventsub/subscriptions",
         method="DELETE",
         model=None,
-        id=BaseParam(name="id", types=str),
+        id=BaseParam(name="id", types=str, required=True),
     )
 
-    # TODO!!!
+    # https://dev.twitch.tv/docs/api/reference#get-eventsub-subscriptions
     get_eventsub_subscriptions = api_call(
         path="eventsub/subscriptions",
         method="GET",
-        model=None,
+        model=EventsubSubscriptionsModel,
         status=BaseParam(name="status", types=str),
         type=BaseParam(name="type", types=str),
     )
 
-    # TODO!!!
+    # https://dev.twitch.tv/docs/api/reference#get-top-games
     get_games_top = api_call(
         path="games/top",
         method="GET",
-        model=None,
+        model=GamesModel,
+        after=BaseParam(name="after", types=str),
+        before=BaseParam(name="before", types=str),
+        first=BaseParam(name="first", types=int, maximum=100),
     )
 
-    # TODO!!!
-    get_games = api_call(path="games", method="GET", model=None)
+    # https://dev.twitch.tv/docs/api/reference#get-games
+    get_games = api_call(
+        path="games",
+        method="GET",
+        model=GamesModel,
+        id=BaseParam(
+            name="id", types=Union[List, str], required=True, required_set="info"
+        ),
+        name=BaseParam(
+            name="name", types=Union[List, str], required=True, required_set="info"
+        ),
+    )
 
-    # TODO!!!
-    get_hypetrain_events = api_call(path="hypetrain/events", method="GET", model=None)
+    # https://dev.twitch.tv/docs/api/reference#get-hype-train-events
+    get_hypetrain_events = api_call(
+        path="hypetrain/events", method="GET", model=None, oauth=True
+    )
 
+    # https://dev.twitch.tv/docs/api/reference#check-automod-status
     post_moderation_enforcements_status = api_call(
         path="moderation/enforcements/status", method="POST", model=None, oauth=True
     )
 
+    # https://dev.twitch.tv/docs/api/reference#get-banned-events
     get_moderation_banned_events = api_call(
         path="moderation/banned/events", method="GET", model=None, oauth=True
     )
 
+    # https://dev.twitch.tv/docs/api/reference#get-banned-users
     get_moderation_banned = api_call(
         path="moderation/banned", method="GET", model=None, oauth=True
     )
 
-    # TODO!!!
+    # https://dev.twitch.tv/docs/api/reference#get-moderators
     get_moderation_moderators = api_call(
-        path="moderation/moderators",
-        method="GET",
-        model=None,
+        path="moderation/moderators", method="GET", model=None, oauth=True
     )
 
+    # https://dev.twitch.tv/docs/api/reference#get-moderator-events
     get_moderation_moderators_events = api_call(
         path="moderation/moderators/events", method="GET", model=None, oauth=True
     )
 
-    # TODO!!!
+    # https://dev.twitch.tv/docs/api/reference#search-categories
     get_search_categories = api_call(
         path="search/categories",
         method="GET",
-        model=None,
+        model=CategoriesModel,
+        query=BaseParam(name="query", types=str, required=True),
     )
 
-    # TODO!!!
-    get_search_channels = api_call(path="search/channels", method="GET", model=None)
+    # https://dev.twitch.tv/docs/api/reference#search-channels
+    get_search_channels = api_call(
+        path="search/channels",
+        method="GET",
+        model=SearchChannelModel,
+        query=BaseParam(name="query", types=str, required=True),
+    )
 
+    # https://dev.twitch.tv/docs/api/reference#get-stream-key
     get_streams_key = api_call(path="streams/key", method="GET", model=None, oauth=True)
 
-    # TODO!!!
+    # https://dev.twitch.tv/docs/api/reference#get-streams
     get_streams = api_call(
         path="streams",
         method="GET",
-        model=None,
+        model=StreamsModel,
+        after=BaseParam(name="after", types=str),
+        before=BaseParam(name="before", types=str),
+        first=BaseParam(name="first", types=int, maximum=100),
+        game_id=BaseParam(name="game_id", types=Union[List, str]),
+        language=BaseParam(name="language", types=str),
+        user_id=BaseParam(name="user_id", types=Union[List, str]),
+        user_login=BaseParam(name="user_login", types=Union[List, str]),
     )
 
+    # https://dev.twitch.tv/docs/api/reference#get-followed-streams
     get_streams_followed = api_call(
         path="streams/followed", method="GET", model=None, oauth=True
     )
 
+    # https://dev.twitch.tv/docs/api/reference#create-stream-marker
     post_streams_markers = api_call(
         path="streams/markers", method="POST", model=None, oauth=True
     )
 
+    # https://dev.twitch.tv/docs/api/reference#get-stream-markers
     get_streams_markers = api_call(
         path="streams/markers", method="GET", model=None, oauth=True
     )
 
-    get_subscriptions = api_call(path="subscriptions", method="GET", model=None, oauth=True)
+    # https://dev.twitch.tv/docs/api/reference#get-broadcaster-subscriptions
+    get_subscriptions = api_call(
+        path="subscriptions", method="GET", model=None, oauth=True
+    )
 
+    # https://dev.twitch.tv/docs/api/reference#check-user-subscription
     get_subscriptions_user = api_call(
         path="subscriptions/user", method="GET", model=None, oauth=True
     )
 
-    # TODO!!!
+    # https://dev.twitch.tv/docs/api/reference#get-all-stream-tags
     get_tags_streams = api_call(
         path="tags/streams",
         method="GET",
-        model=None,
+        model=TagsModel,
+        after=BaseParam(name="after", types=str),
+        first=BaseParam(name="first", types=int, maximum=100),
+        tag_id=BaseParam(name="tag_id", types=Union[list, str]),
     )
 
-    # TODO!!!
-    get_streams_tags = api_call(path="streams/tags", method="GET", model=None)
+    # https://dev.twitch.tv/docs/api/reference#get-stream-tags
+    get_streams_tags = api_call(
+        path="streams/tags",
+        method="GET",
+        model=TagsModel,
+        broadcaster_id=BaseParam(name="broadcaster_id", types=str, required=True),
+    )
 
-    # TODO!!!
+    # https://dev.twitch.tv/docs/api/reference#replace-stream-tags
     put_streams_tags = api_call(
         path="streams/tags", method="GET", model=None, oauth=True
     )
 
-    # TODO!!!
+    # https://dev.twitch.tv/docs/api/reference#get-channel-teams
     get_teams_channel = api_call(
         path="teams/channel",
         method="GET",
-        model=None,
+        model=TeamsChannelModel,
+        broadcaster_id=BaseParam(name="broadcaster_id", types=str, required=True),
     )
 
-    # TODO!!!
+    # https://dev.twitch.tv/docs/api/reference#get-teams
     get_teams = api_call(
         path="teams",
         method="GET",
-        model=None,
+        model=TeamsModel,
+        name=BaseParam(name="name", types=str),
+        id=BaseParam(name="id", types=str),
     )
 
-    # TODO!!!
+    # https://dev.twitch.tv/docs/api/reference#get-users
     get_users = api_call(
         path="users",
         method="GET",
-        model=None,
-        id=BaseParam(name="id", types=str),
-        login=BaseParam(name="login", types=str),
+        model=UsersModel,
+        id=BaseParam(name="id", types=Union[List, str], required_set="user"),
+        login=BaseParam(name="login", types=Union[List, str], required_set="user"),
     )
 
+    # https://dev.twitch.tv/docs/api/reference#update-user
     put_users = api_call(path="users", method="PUT", model=None, oauth=True)
 
-    # TODO!!!
-    get_users_follows = api_call(path="users/follows", method="GET", model=None)
+    # https://dev.twitch.tv/docs/api/reference#get-users-follows
+    get_users_follows = api_call(
+        path="users/follows",
+        method="GET",
+        model=UsersFollowsModel,
+        after=BaseParam(name="after", types=str),
+        first=BaseParam(name="first", types=int, maximum=100),
+        from_id=BaseParam(name="from_id", types=str),
+        to_id=BaseParam(name="to_id", types=str),
+    )
 
+    # https://dev.twitch.tv/docs/api/reference#create-user-follows
     post_users_follows = api_call(
         path="users/follows", method="POST", model=None, oauth=True
     )
 
+    # https://dev.twitch.tv/docs/api/reference#delete-user-follows
     delete_users_follows = api_call(
         path="users/follows", method="DELETE", model=None, oauth=True
     )
 
+    # https://dev.twitch.tv/docs/api/reference#get-user-block-list
     get_users_blocks = api_call(
         path="users/blocks", method="GET", model=None, oauth=True
     )
 
+    # https://dev.twitch.tv/docs/api/reference#block-user
     put_users_blocks = api_call(
         path="users/blocks", method="PUT", model=None, oauth=True
     )
 
+    # https://dev.twitch.tv/docs/api/reference#unblock-user
     delete_users_blocks = api_call(
         path="users/blocks", method="DELETE", model=None, oauth=True
     )
 
+    # https://dev.twitch.tv/docs/api/reference#get-user-extensions
     get_users_extensions_list = api_call(
         path="users/extensions/list", method="GET", model=None, oauth=True
     )
 
+    # https://dev.twitch.tv/docs/api/reference#get-user-active-extensions
     get_users_extensions = api_call(
         path="users/extensions", method="GET", model=None, oauth=True
     )
 
+    # https://dev.twitch.tv/docs/api/reference#update-user-extensions
     put_users_extensions = api_call(
         path="users/extensions", method="PUT", model=None, oauth=True
     )
 
-    get_videos = api_call(path="videos", method="GET", model=None)
+    # https://dev.twitch.tv/docs/api/reference#get-videos
+    get_videos = api_call(
+        path="videos",
+        method="GET",
+        model=VideosModel,
+        id=BaseParam(name="id", types=Union[List, str], required_set="info"),
+        user_id=BaseParam(name="user_id", types=str, required_set="info"),
+        game_id=BaseParam(name="game_id", types=str, required_set="info"),
+        after=BaseParam(name="after", types=str),
+        before=BaseParam(name="before", types=str),
+        first=BaseParam(name="first", types=int, maximum=100),
+        language=BaseParam(name="language", types=str),
+        period=BaseParam(name="period", types=str),
+        sort=BaseParam(name="sort", types=str),
+        type=BaseParam(name="type", types=str),
+    )
 
-    delete_videos = api_call(path="videos", method="DELETE", model=None)
+    # https://dev.twitch.tv/docs/api/reference#delete-videos
+    delete_videos = api_call(path="videos", method="DELETE", model=None, oauth=True)
 
+    # https://dev.twitch.tv/docs/api/reference#get-webhook-subscriptions
     get_webhooks_subscriptions = api_call(
-        path="webhooks/subscriptions", method="GET", model=None
+        path="webhooks/subscriptions", method="GET", model=WebhooksSubscriptionsModel
     )
