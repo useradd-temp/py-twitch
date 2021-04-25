@@ -7,9 +7,9 @@ from urllib.parse import urljoin
 from dacite import from_dict
 from ast import literal_eval
 
-from twitch.models import *
-from twitch.params import BaseParam
-from twitch.exception import APIError, ValidationError, NotProvideError
+from .models import *
+from .params import BaseParam
+from .exception import APIError, ValidationError, NotProvideError
 
 T = TypeVar("T")
 

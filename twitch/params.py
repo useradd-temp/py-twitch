@@ -1,4 +1,4 @@
-from exception import ValidationError
+from .exception import ValidationError
 
 
 class BaseParam:
