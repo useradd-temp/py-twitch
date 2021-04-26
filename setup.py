@@ -8,7 +8,7 @@ with open('README.md', encoding='utf-8') as f:
     
 setup(
     name="py-twitch",
-    version="0.1.0",
+    version="0.1.3",
     author="TEMP USER",
     author_email="useradd.temp@gmail.com",
     description="Twitch API Python client",
